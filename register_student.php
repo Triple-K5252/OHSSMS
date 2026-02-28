@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    // Final Project Update
     <?php include 'admin_navbar.php'; ?>
 <div class="form-container">
 <h3>Register Student</h3>
