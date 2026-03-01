@@ -7,5 +7,4 @@ Thumbs.db
 .phpunit.result.cache
 
 # Ignore sensitive Database Config (IMPORTANT)
-config.php
-db.php
+config/
