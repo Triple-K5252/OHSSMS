@@ -8,4 +8,4 @@ Thumbs.db
 
 # Ignore sensitive Database Config (IMPORTANT)
 config.php
-db_connect.php
+db.php
