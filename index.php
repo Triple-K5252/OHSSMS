@@ -38,22 +38,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>OHSSMS Login</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        body { background: #f4f4f4; }
+        body { 
+            background-image: url("AI\ Images\ \(4k\)\ -\ Freepik\ \(290324469136\).jpeg");
+            background-size: cover;
+            background-repeat: no-repeat;
+
+        }
+        h1{
+            font-size: 3rem;
+            color: #080808;
+            justify-content: center;
+            text-align: center;
+        }
         .login-container {
-            background: #fff;
+            background: #302e2e;
             padding: 30px 40px;
             margin: 60px auto;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(233, 224, 224, 0.1);
             max-width: 400px;
         }
-        h2 { text-align: center; color: #333; }
+        h2 { text-align: center; color: #e4d6d6; }
         input, select, button {
             width: 100%;
+            height: 30%;
             padding: 8px;
             margin: 8px 0 16px 0;
             border: 1px solid #ccc;
             border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: bold;
         }
         button {
             background: #007bff;
@@ -63,10 +77,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         button:hover { background: #0056b3; }
         .error { color: #c00; text-align: center; }
-        label { font-weight: bold; }
+        label { 
+            font-weight: bold;
+            color:white;
+            font-size: 1.5em;
+                
+    
+    }
     </style>
 </head>
 <body>
+    <h1>Online High School Student Management System</h1>
     <div class="login-container">
         <h2>Login</h2>
         <?php if ($error) echo "<p class='error'>$error</p>"; ?>
@@ -85,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="password" name="password" required><br>
             <button type="submit">Login</button>
         </form>
-        <p style="font-size: 0.95em; color: #555; margin-top: 10px;">
+        <p style="font-size: 0.95em; color: #d4cccc; margin-top: 10px;">
             <b>Admin:</b> Use <i>admin</i> for both username and password.<br>
             <b>Teacher:</b> Use your Teacher ID.<br>
             <b>Student:</b> Use your Admission Number.<br>

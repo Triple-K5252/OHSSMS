@@ -1,0 +1,11 @@
+# Ignore OS-generated files
+Thumbs.db
+.DS_Store
+
+# Ignore XAMPP/PHP temp files
+*.log
+.phpunit.result.cache
+
+# Ignore sensitive Database Config (IMPORTANT)
+config.php
+db_connect.php
