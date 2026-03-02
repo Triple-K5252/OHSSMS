@@ -1,292 +1,198 @@
 <?php
 session_start();
 require_once 'config/db.php';
-if ($_SESSION['role'] !== 'admin') { header('Location: index.php'); exit; }
-
-// Handle add subject
-$add_msg = '';
-if (isset($_POST['add_subject'])) {
-    $new_subject = trim($_POST['new_subject']);
-    if ($new_subject !== '') {
-        $stmt = $pdo->prepare("SELECT * FROM subjects WHERE subject_name = ?");
-        $stmt->execute([$new_subject]);
-        if ($stmt->rowCount() == 0) {
-            $stmt = $pdo->prepare("INSERT INTO subjects (subject_name) VALUES (?)");
-            $stmt->execute([$new_subject]);
-            $add_msg = "<span class='success'>Subject added!</span>";
-        } else {
-            $add_msg = "<span class='error'>Subject already exists.</span>";
-        }
-    }
-}
-
-// Handle delete subject
-if (isset($_GET['delete_subject'])) {
-    $subject_id = intval($_GET['delete_subject']);
-    $stmt = $pdo->prepare("DELETE FROM subjects WHERE subject_id = ?");
-    $stmt->execute([$subject_id]);
-    header("Location: admin_dashboard.php");
-    exit;
-}
-
-// Get counts
-$student_count = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-$staff_count = $pdo->query("SELECT COUNT(*) FROM staff")->fetchColumn();
-$subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fetchAll();
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .dashboard-box { background: #fff; padding: 20px; margin: 20px auto; border-radius: 8px; max-width: 600px; }
-        .subject-list { margin-top: 10px; }
-        .subject-list li { margin-bottom: 6px; }
-        .subject-list form { display: inline; }
-        .success { color: green; }
-        .error { color: red; }
-    </style>
-</head>
-<body>
-    <?php include 'admin_navbar.php'; ?>
-<div class="dashboard-box">
-    <h2>Admin Dashboard</h2>
-    <p><b>Registered Students:</b> <?= $student_count ?></p>
-    <p><b>Registered Staff:</b> <?= $staff_count ?></p>
-    <hr>
-
-    <?php
-// Handle delete (soft delete)
-if (isset($_GET['delete_student'])) {
-    $id = intval($_GET['delete_student']);
-    $pdo->prepare("UPDATE students SET is_active = 0 WHERE student_id = ?")->execute([$id]);
-    $msg = "<span class='success'>Student marked as transferred (inactive).</span>";
-}
-if (isset($_GET['delete_staff'])) {
-    $id = intval($_GET['delete_staff']);
-    $pdo->prepare("UPDATE staff SET is_active = 0 WHERE staff_id = ?")->execute([$id]);
-    $msg = "<span class='success'>Staff marked as inactive.</span>";
-}
-
-// Handle edit (show form)
-$edit_student = null;
-$edit_staff = null;
+$edit_data = null;
 if (isset($_GET['edit_student'])) {
-    $id = intval($_GET['edit_student']);
     $stmt = $pdo->prepare("SELECT * FROM students WHERE student_id = ?");
-    $stmt->execute([$id]);
-    $edit_student = $stmt->fetch();
-}
-if (isset($_GET['edit_staff'])) {
-    $id = intval($_GET['edit_staff']);
+    $stmt->execute([$_GET['edit_student']]);
+    $edit_data = $stmt->fetch();
+    $edit_type = 'student';
+} elseif (isset($_GET['edit_staff'])) {
     $stmt = $pdo->prepare("SELECT * FROM staff WHERE staff_id = ?");
-    $stmt->execute([$id]);
-    $edit_staff = $stmt->fetch();
+    $stmt->execute([$_GET['edit_staff']]);
+    $edit_data = $stmt->fetch();
+    $edit_type = 'staff';
 }
 
-// Handle update
-if (isset($_POST['update_student'])) {
-    $stmt = $pdo->prepare("UPDATE students SET first_name=?, middle_name=?, last_name=?, dob=?, form=?, stream=?, guardian_name=?, guardian_contact=? WHERE student_id=?");
-    $stmt->execute([
-        $_POST['first_name'], $_POST['middle_name'], $_POST['last_name'], $_POST['dob'],
-        $_POST['form'], $_POST['stream'], $_POST['guardian_name'], $_POST['guardian_contact'], $_POST['student_id']
-    ]);
-    $msg = "<span class='success'>Student details updated.</span>";
-}
-if (isset($_POST['update_staff'])) {
-    $stmt = $pdo->prepare("UPDATE staff SET first_name=?, last_name=?, dob=? WHERE staff_id=?");
-    $stmt->execute([
-        $_POST['first_name'], $_POST['last_name'], $_POST['dob'], $_POST['staff_id']
-    ]);
-    $msg = "<span class='success'>Staff details updated.</span>";
-}
-
-// Handle search
+// Handle Search Logic
 $search_results = [];
 if (isset($_POST['search'])) {
     $type = $_POST['search_type'];
     $query = trim($_POST['query']);
+    $searchTerm = "%$query%";
+
     if ($type == 'student') {
-        $sql = "SELECT * FROM students WHERE is_active=1 AND (admission_no LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR (form = ? AND stream = ?))";
-        $params = ["%$query%", "%$query%", "%$query%", $query, $query];
+        $sql = "SELECT * FROM students WHERE is_active=1 AND (admission_no LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR form LIKE ? OR stream LIKE ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         $search_results = $stmt->fetchAll();
     } else {
         $sql = "SELECT * FROM staff WHERE is_active=1 AND (id_no LIKE ? OR first_name LIKE ? OR last_name LIKE ?)";
-        $params = ["%$query%", "%$query%", "%$query%"];
         $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
         $search_results = $stmt->fetchAll();
     }
 }
-?>
-<hr>
-<h3>Search Staff or Student</h3>
-<?php if (!empty($msg)) echo $msg; ?>
-<form method="POST" style="margin-bottom:20px;">
-    <select name="search_type">
-        <option value="student">Student</option>
-        <option value="staff">Staff</option>
-    </select>
-    <input type="text" name="query" placeholder="Name, ID, Admission No, or Class" required>
-    <button type="submit" name="search">Search</button>
-</form>
 
-<?php if ($edit_student): ?>
-    <h4>Edit Student</h4>
-    <form method="POST">
-        <input type="hidden" name="student_id" value="<?= $edit_student['student_id'] ?>">
-        First Name: <input name="first_name" value="<?= htmlspecialchars($edit_student['first_name']) ?>" required><br>
-        Middle Name: <input name="middle_name" value="<?= htmlspecialchars($edit_student['middle_name']) ?>"><br>
-        Last Name: <input name="last_name" value="<?= htmlspecialchars($edit_student['last_name']) ?>" required><br>
-        Date of Birth: <input type="date" name="dob" value="<?= htmlspecialchars($edit_student['dob']) ?>" required><br>
-        Form: <input name="form" value="<?= htmlspecialchars($edit_student['form']) ?>" required><br>
-        Stream: <input name="stream" value="<?= htmlspecialchars($edit_student['stream']) ?>" required><br>
-        Guardian Name: <input name="guardian_name" value="<?= htmlspecialchars($edit_student['guardian_name']) ?>" required><br>
-        Guardian Contact: <input name="guardian_contact" value="<?= htmlspecialchars($edit_student['guardian_contact']) ?>" required><br>
-        <button type="submit" name="update_student">Update Student</button>
+// Fetch subjects for the management list
+$subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fetchAll();
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - OHSSMS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .dashboard-container { padding: 20px; max-width: 1200px; margin: auto; }
+        .dashboard-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        .btn-delete { background: #ff4d4d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-edit { background: #3498db; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; margin-right: 5px; font-size: 13px; display: inline-block; }
+        .chart-container { position: relative; height:250px; width:250px; margin: 0 auto 30px auto; }
+    </style>
+</head>
+<body>
+    <?php include 'admin_navbar.php'; ?>
+
+    <div class="dashboard-container">
+        <div class="dashboard-box">
+            <h2>System Overview</h2>
+            <div class="chart-container">
+                <canvas id="ohssmsChart"></canvas>
+            </div>
+        </div>
+ 
+        <?php if ($edit_data): ?>
+<div class="dashboard-box" style="border: 2px solid #3498db; background: #f0f7ff;">
+    <h3>Edit Details for: <?= htmlspecialchars($edit_data['first_name']) ?></h3>
+    <form method="POST" action="update_handler.php">
+        <input type="hidden" name="id" value="<?= $edit_type == 'student' ? $edit_data['student_id'] : $edit_data['staff_id'] ?>">
+        <input type="hidden" name="type" value="<?= $edit_type ?>">
+        
+        <label>First Name:</label>
+        <input type="text" name="first_name" value="<?= htmlspecialchars($edit_data['first_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
+        
+        <label>Last Name:</label>
+        <input type="text" name="last_name" value="<?= htmlspecialchars($edit_data['last_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
+
+        <?php if ($edit_type == 'student'): ?>
+            <label>Form:</label>
+            <input type="text" name="form" value="<?= htmlspecialchars($edit_data['form']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+            <label>Stream:</label>
+            <input type="text" name="stream" value="<?= htmlspecialchars($edit_data['stream']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+            <label>Guardian Contact:</label>
+            <input type="text" name="guardian_contact" value="<?= htmlspecialchars($edit_data['guardian_contact']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+        <?php else: ?>
+            <label>ID Number:</label>
+            <input type="text" name="id_no" value="<?= htmlspecialchars($edit_data['id_no']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+        <?php endif; ?>
+
+        <button type="submit" name="update" style="background: #27ae60; color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px;">Save Changes</button>
+        <a href="admin_dashboard.php" style="margin-left:10px; color: #e74c3c;">Cancel</a>
     </form>
-<?php elseif ($edit_staff): ?>
-    <h4>Edit Staff</h4>
-    <form method="POST">
-        <input type="hidden" name="staff_id" value="<?= $edit_staff['staff_id'] ?>">
-        First Name: <input name="first_name" value="<?= htmlspecialchars($edit_staff['first_name']) ?>" required><br>
-        Last Name: <input name="last_name" value="<?= htmlspecialchars($edit_staff['last_name']) ?>" required><br>
-        Date of Birth: <input type="date" name="dob" value="<?= htmlspecialchars($edit_staff['dob']) ?>" required><br>
-        <button type="submit" name="update_staff">Update Staff</button>
-    </form>
-<?php elseif (!empty($search_results)): ?>
-    <h4>Search Results</h4>
-    <table border="1" cellpadding="6" style="width:100%;">
-        <tr>
-            <?php if ($_POST['search_type'] == 'student'): ?>
-                <th>Admission No</th><th>Name</th><th>Form</th><th>Stream</th><th>Guardian</th><th>Contact</th>
-            <?php else: ?>
-                <th>ID No</th><th>Name</th><th>Date of Birth</th>
-            <?php endif; ?>
-            <th>Actions</th>
-        </tr>
-        <?php foreach ($search_results as $row): ?>
-            <tr>
-                <?php if ($_POST['search_type'] == 'student'): ?>
-                    <td><?= htmlspecialchars($row['admission_no']) ?></td>
-                    <td><?= htmlspecialchars($row['first_name'].' '.$row['middle_name'].' '.$row['last_name']) ?></td>
-                    <td><?= htmlspecialchars($row['form']) ?></td>
-                    <td><?= htmlspecialchars($row['stream']) ?></td>
-                    <td><?= htmlspecialchars($row['guardian_name']) ?></td>
-                    <td><?= htmlspecialchars($row['guardian_contact']) ?></td>
-                    <td>
-                        <a href="?edit_student=<?= $row['student_id'] ?>">Edit</a> |
-                        <a href="?delete_student=<?= $row['student_id'] ?>" onclick="return confirm('Mark this student as transferred?');">Delete</a>
-                    </td>
-                <?php else: ?>
-                    <td><?= htmlspecialchars($row['id_no']) ?></td>
-                    <td><?= htmlspecialchars($row['first_name'].' '.$row['last_name']) ?></td>
-                    <td><?= htmlspecialchars($row['dob']) ?></td>
-                    <td>
-                        <a href="?edit_staff=<?= $row['staff_id'] ?>">Edit</a> |
-                        <a href="?delete_staff=<?= $row['staff_id'] ?>" onclick="return confirm('Mark this staff as inactive?');">Delete</a>
-                    </td>
-                <?php endif; ?>
-            </tr>
-        <?php endforeach; ?>
-    </table>
+</div>
 <?php endif; ?>
-    <h3>Subjects</h3>
-    <?= $add_msg ?>
-    <form method="POST" style="margin-bottom: 10px;">
-        <input type="text" name="new_subject" placeholder="Add new subject" required>
-        <button type="submit" name="add_subject">Add Subject</button>
-    </form>
-    <ul class="subject-list">
-        <?php foreach ($subjects as $subject): ?>
-            <li>
-                <?= htmlspecialchars($subject['subject_name']) ?>
-                <form method="GET" style="display:inline;">
-                    <input type="hidden" name="delete_subject" value="<?= $subject['subject_id'] ?>">
-                    <button type="submit" onclick="return confirm('Delete this subject?');" style="color:red;">Remove</button>
-                </form>
-            </li>
-        <?php endforeach; ?>
-    </ul>
-    <?php
-// Handle announcement submission
-$announce_msg = '';
-if (isset($_POST['post_announcement'])) {
-    $title = trim($_POST['title']);
-    $message = trim($_POST['message']);
-    $audience = $_POST['audience'];
-    $form = !empty($_POST['form']) ? $_POST['form'] : null;
-    $stream = !empty($_POST['stream']) ? $_POST['stream'] : null;
+        <div class="dashboard-box">
+            <h3>Search Records</h3>
+            <form method="POST">
+                <select name="search_type" style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                    <option value="student">Student</option>
+                    <option value="staff">Staff</option>
+                </select>
+                <input type="text" name="query" placeholder="Search by name, ID, or Class..." style="width: 100%; padding: 10px; margin-bottom: 10px;">
+                <button type="submit" name="search" style="width: 100%; padding: 10px; background: #2c3e50; color: white; border: none; cursor: pointer;">Search</button>
+            </form>
 
-    if ($title && $message && $audience) {
-        $stmt = $pdo->prepare("INSERT INTO announcements (title, message, audience, form, stream) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$title, $message, $audience, $form, $stream]);
-        $announce_msg = "<span class='success'>Announcement posted!</span>";
-    } else {
-        $announce_msg = "<span class='error'>Please fill all required fields.</span>";
-    }
-}
+            <?php if (!empty($search_results)): ?>
+                <table>
+                    <thead>
+                        <tr>
+                            <?php if ($_POST['search_type'] == 'student'): ?>
+                                <th>Adm No</th><th>Name</th><th>Class</th><th>Actions</th>
+                            <?php else: ?>
+                                <th>ID No</th><th>Name</th><th>Actions</th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($search_results as $row): ?>
+                            <tr>
+                                <?php if ($_POST['search_type'] == 'student'): ?>
+                                    <td><?= htmlspecialchars($row['admission_no']) ?></td>
+                                    <td><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+                                    <td><?= htmlspecialchars($row['form'] . ' ' . $row['stream']) ?></td>
+                                    <td>
+                                        <a href="?edit_student=<?= $row['student_id'] ?>" class="btn-edit">Edit</a>
+                                        <button class="btn-delete" onclick="confirmAction('student', <?= $row['student_id'] ?>)">Delete</button>
+                                    </td>
+                                <?php else: ?>
+                                    <td><?= htmlspecialchars($row['id_no']) ?></td>
+                                    <td><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+                                    <td>
+                                        <a href="?edit_staff=<?= $row['staff_id'] ?>" class="btn-edit">Edit</a>
+                                        <button class="btn-delete" onclick="confirmAction('staff', <?= $row['staff_id'] ?>)">Delete</button>
+                                    </td>
+                                <?php endif; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
 
-// Handle timetable upload (as a file)
-$timetable_msg = '';
-if (isset($_POST['upload_timetable']) && isset($_FILES['timetable_file'])) {
-    $target_dir = "uploads/";
-    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-    $file_name = basename($_FILES["timetable_file"]["name"]);
-    $target_file = $target_dir . time() . "_" . $file_name;
-    if (move_uploaded_file($_FILES["timetable_file"]["tmp_name"], $target_file)) {
-        $stmt = $pdo->prepare("INSERT INTO timetable (file_path, uploaded_at) VALUES (?, NOW())");
-        $stmt->execute([$target_file]);
-        $timetable_msg = "<span class='success'>Timetable uploaded!</span>";
-    } else {
-        $timetable_msg = "<span class='error'>Failed to upload timetable.</span>";
-    }
-}
-?>
-<!-- Announcement Form -->
-<hr>
-<h3>Post Announcement</h3>
-<?= $announce_msg ?>
-<form method="POST">
-    <input type="text" name="title" placeholder="Title" required><br>
-    <textarea name="message" placeholder="Announcement message" required style="width:100%;height:80px;"></textarea><br>
-    <label>Audience:</label>
-    <select name="audience" required>
-        <option value="all">All</option>
-        <option value="students">Students</option>
-        <option value="teachers">Teachers</option>
-        <option value="parents">Parents</option>
-    </select>
-    <label>Form (optional):</label>
-    <select name="form">
-        <option value="">--Any--</option>
-        <option value="1">Form 1</option>
-        <option value="2">Form 2</option>
-        <option value="3">Form 3</option>
-        <option value="4">Form 4</option>
-    </select>
-    <label>Stream (optional):</label>
-    <select name="stream">
-        <option value="">--Any--</option>
-        <option value="North">North</option>
-        <option value="South">South</option>
-        <option value="East">East</option>
-        <option value="West">West</option>
-    </select>
-    <button type="submit" name="post_announcement">Post Announcement</button>
-</form>
+        <div class="dashboard-box">
+            <h3>Manage Subjects</h3>
+            <form method="POST" action="add_subject.php">
+                <input type="text" name="subject_name" placeholder="New Subject Name" required style="width: 70%; padding: 10px;">
+                <button type="submit" style="padding: 10px;">Add Subject</button>
+            </form>
+            <ul style="list-style: none; padding: 0; margin-top: 15px;">
+                <?php foreach ($subjects as $subject): ?>
+                    <li style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                        <?= htmlspecialchars($subject['subject_name']) ?>
+                        <button class="btn-delete" onclick="confirmAction('subject', <?= $subject['subject_id'] ?>)">Remove</button>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </div>
 
-<!-- Timetable Upload -->
-<hr>
-<h3>Upload Timetable</h3>
-<?= $timetable_msg ?>
-<form method="POST" enctype="multipart/form-data">
-    <input type="file" name="timetable_file" accept=".pdf,.jpg,.png,.doc,.docx" required>
-    <button type="submit" name="upload_timetable">Upload Timetable</button>
-</form>
-   
+    <script>
+        // 1. Initialize the Chart
+        const ctx = document.getElementById('ohssmsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Students', 'Staff'],
+                datasets: [{
+                    data: [10, 5], // You can replace these with real counts later
+                    backgroundColor: ['#3498db', '#f39c12']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 2. SweetAlert Delete Confirmation
+        function confirmAction(type, id) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This action cannot be undone!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff4d4d',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = `delete_handler.php?type=${type}&id=${id}`;
+                }
+            });
+        }
+    </script>
 </body>
 </html>
