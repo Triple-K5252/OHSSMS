@@ -1,12 +1,27 @@
 <?php
 session_start();
 require_once 'config/db.php';
+
+// Check if admin is logged in (Assuming you have this session variable)
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header('Location: index.php');
+    exit;
+}
+
 $edit_data = null;
+$current_subject_ids = [];
+
 if (isset($_GET['edit_student'])) {
     $stmt = $pdo->prepare("SELECT * FROM students WHERE student_id = ?");
     $stmt->execute([$_GET['edit_student']]);
     $edit_data = $stmt->fetch();
     $edit_type = 'student';
+
+    // Fetch subjects THIS student is currently doing
+    $subj_stmt = $pdo->prepare("SELECT subject_id FROM student_subjects WHERE student_id = ?");
+    $subj_stmt->execute([$_GET['edit_student']]);
+    $current_subject_ids = $subj_stmt->fetchAll(PDO::FETCH_COLUMN);
+
 } elseif (isset($_GET['edit_staff'])) {
     $stmt = $pdo->prepare("SELECT * FROM staff WHERE staff_id = ?");
     $stmt->execute([$_GET['edit_staff']]);
@@ -34,8 +49,8 @@ if (isset($_POST['search'])) {
     }
 }
 
-// Fetch subjects for the management list
-$subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fetchAll();
+// Fetch subjects for the management list and selection
+$all_subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -54,6 +69,7 @@ $subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fet
         .btn-delete { background: #ff4d4d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-edit { background: #3498db; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; margin-right: 5px; font-size: 13px; display: inline-block; }
         .chart-container { position: relative; height:250px; width:250px; margin: 0 auto 30px auto; }
+        .subject-select { width: 100%; height: 120px; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -66,37 +82,55 @@ $subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fet
                 <canvas id="ohssmsChart"></canvas>
             </div>
         </div>
- 
-        <?php if ($edit_data): ?>
-<div class="dashboard-box" style="border: 2px solid #3498db; background: #f0f7ff;">
-    <h3>Edit Details for: <?= htmlspecialchars($edit_data['first_name']) ?></h3>
-    <form method="POST" action="update_handler.php">
-        <input type="hidden" name="id" value="<?= $edit_type == 'student' ? $edit_data['student_id'] : $edit_data['staff_id'] ?>">
-        <input type="hidden" name="type" value="<?= $edit_type ?>">
-        
-        <label>First Name:</label>
-        <input type="text" name="first_name" value="<?= htmlspecialchars($edit_data['first_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
-        
-        <label>Last Name:</label>
-        <input type="text" name="last_name" value="<?= htmlspecialchars($edit_data['last_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
 
-        <?php if ($edit_type == 'student'): ?>
-            <label>Form:</label>
-            <input type="text" name="form" value="<?= htmlspecialchars($edit_data['form']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
-            <label>Stream:</label>
-            <input type="text" name="stream" value="<?= htmlspecialchars($edit_data['stream']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
-            <label>Guardian Contact:</label>
-            <input type="text" name="guardian_contact" value="<?= htmlspecialchars($edit_data['guardian_contact']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
-        <?php else: ?>
-            <label>ID Number:</label>
-            <input type="text" name="id_no" value="<?= htmlspecialchars($edit_data['id_no']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+        <?php if ($edit_data): ?>
+        <div class="dashboard-box" style="border: 2px solid #3498db; background: #f0f7ff;">
+            <h3>Edit Details for: <?= htmlspecialchars($edit_data['first_name']) ?></h3>
+            <form method="POST" action="update_handler.php">
+                <input type="hidden" name="id" value="<?= $edit_type == 'student' ? $edit_data['student_id'] : $edit_data['staff_id'] ?>">
+                <input type="hidden" name="type" value="<?= $edit_type ?>">
+                
+                <label>First Name:</label>
+                <input type="text" name="first_name" value="<?= htmlspecialchars($edit_data['first_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
+                
+                <label>Last Name:</label>
+                <input type="text" name="last_name" value="<?= htmlspecialchars($edit_data['last_name']) ?>" required style="width:100%; padding:8px; margin-bottom:10px;">
+
+                <?php if ($edit_type == 'student'): ?>
+                    <label>Form:</label>
+                    <select name="form" style="width:100%; padding:8px; margin-bottom:10px;">
+                        <option value="1" <?= $edit_data['form'] == 1 ? 'selected' : '' ?>>Form 1</option>
+                        <option value="2" <?= $edit_data['form'] == 2 ? 'selected' : '' ?>>Form 2</option>
+                        <option value="3" <?= $edit_data['form'] == 3 ? 'selected' : '' ?>>Form 3</option>
+                        <option value="4" <?= $edit_data['form'] == 4 ? 'selected' : '' ?>>Form 4</option>
+                    </select>
+                    
+                    <label>Stream:</label>
+                    <input type="text" name="stream" value="<?= htmlspecialchars($edit_data['stream']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+                    
+                    <label>Guardian Contact:</label>
+                    <input type="text" name="guardian_contact" value="<?= htmlspecialchars($edit_data['guardian_contact']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+
+                    <label><strong>Assign Subjects (Hold Ctrl to select multiple):</strong></label>
+                    <select name="student_subjects[]" multiple class="subject-select">
+                        <?php foreach ($all_subjects as $subj): ?>
+                            <option value="<?= $subj['subject_id'] ?>" <?= in_array($subj['subject_id'], $current_subject_ids) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($subj['subject_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+
+                <?php else: ?>
+                    <label>ID Number:</label>
+                    <input type="text" name="id_no" value="<?= htmlspecialchars($edit_data['id_no']) ?>" style="width:100%; padding:8px; margin-bottom:10px;">
+                <?php endif; ?>
+
+                <button type="submit" name="update" style="background: #27ae60; color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px;">Save Changes</button>
+                <a href="admin_dashboard.php" style="margin-left:10px; color: #e74c3c;">Cancel</a>
+            </form>
+        </div>
         <?php endif; ?>
 
-        <button type="submit" name="update" style="background: #27ae60; color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px;">Save Changes</button>
-        <a href="admin_dashboard.php" style="margin-left:10px; color: #e74c3c;">Cancel</a>
-    </form>
-</div>
-<?php endif; ?>
         <div class="dashboard-box">
             <h3>Search Records</h3>
             <form method="POST">
@@ -152,7 +186,7 @@ $subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fet
                 <button type="submit" style="padding: 10px;">Add Subject</button>
             </form>
             <ul style="list-style: none; padding: 0; margin-top: 15px;">
-                <?php foreach ($subjects as $subject): ?>
+                <?php foreach ($all_subjects as $subject): ?>
                     <li style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
                         <?= htmlspecialchars($subject['subject_name']) ?>
                         <button class="btn-delete" onclick="confirmAction('subject', <?= $subject['subject_id'] ?>)">Remove</button>
@@ -163,21 +197,19 @@ $subjects = $pdo->query("SELECT * FROM subjects ORDER BY subject_name ASC")->fet
     </div>
 
     <script>
-        // 1. Initialize the Chart
         const ctx = document.getElementById('ohssmsChart').getContext('2d');
         new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['Students', 'Staff'],
                 datasets: [{
-                    data: [10, 5], // You can replace these with real counts later
+                    data: [10, 5], 
                     backgroundColor: ['#3498db', '#f39c12']
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // 2. SweetAlert Delete Confirmation
         function confirmAction(type, id) {
             Swal.fire({
                 title: 'Are you sure?',
