@@ -19,52 +19,27 @@ $stmt = $pdo->prepare("
 $stmt->execute([$student['student_id']]);
 $terms = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-// Get selected term (or default to first available)
 $selected_term = isset($_GET['term']) ? $_GET['term'] : (count($terms) ? $terms[0] : '');
 
-// Grade to points mapping
 $grade_points = [
     'A'=>12, 'A-'=>11, 'B+'=>10, 'B'=>9, 'B-'=>8,
     'C+'=>7, 'C'=>6, 'C-'=>5, 'D+'=>4, 'D'=>3, 'D-'=>2, 'E'=>1
 ];
 
-// Get all subjects the student is doing
-$subjects = [];
-if ($student['form'] == 1 || ($student['form'] == 2 && $selected_term <= 'Term 2')) {
-    $compulsory = [
-        'Mathematics', 'Kiswahili', 'Chemistry', 'English',
-        'Physics', 'Biology', 'CRE', 'Geography', 'History & Government'
-    ];
-    foreach ($compulsory as $subj) $subjects[] = $subj;
-    if (in_array($student['stream'], ['North', 'South'])) {
-        $subjects[] = 'Computer Studies';
-        $subjects[] = 'Agriculture';
-    } else {
-        $subjects[] = 'Business Studies';
-        $subjects[] = 'Drawing & Design';
-    }
-    // Get subject IDs for easier matching
-    $placeholders = implode(',', array_fill(0, count($subjects), '?'));
-    $stmt = $pdo->prepare("SELECT subject_id, subject_name FROM subjects WHERE subject_name IN ($placeholders)");
-    $stmt->execute($subjects);
-    $subject_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $subject_map = [];
-    foreach ($subject_rows as $row) $subject_map[$row['subject_id']] = $row['subject_name'];
-} else {
-    // For Form 2 (after Term 2), Form 3, and Form 4: show chosen subjects
-    $stmt = $pdo->prepare("
-        SELECT s.subject_id, s.subject_name
-        FROM chosen_subjects cs
-        JOIN subjects s ON cs.subject_id = s.subject_id
-        WHERE cs.student_id = ?
-    ");
-    $stmt->execute([$student['student_id']]);
-    $subject_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $subject_map = [];
-    foreach ($subject_rows as $row) $subject_map[$row['subject_id']] = $row['subject_name'];
+// FETCH ONLY ASSIGNED SUBJECTS FROM THE NEW TABLE
+$stmt = $pdo->prepare("
+    SELECT s.subject_id, s.subject_name
+    FROM subjects s
+    JOIN student_subjects ss ON s.subject_id = ss.subject_id
+    WHERE ss.student_id = ?
+");
+$stmt->execute([$student['student_id']]);
+$subject_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$subject_map = [];
+foreach ($subject_rows as $row) {
+    $subject_map[$row['subject_id']] = $row['subject_name'];
 }
 
-// Fetch grades for the selected term, indexed by subject_id
 $grades = [];
 if ($selected_term && !empty($subject_map)) {
     $subject_ids = array_keys($subject_map);
@@ -83,30 +58,26 @@ if ($selected_term && !empty($subject_map)) {
     }
 }
 
-// Calculate totals
-$total_marks = 0;
-$total_points = 0;
 $subject_count = count($subject_map);
-
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Grades</title>
+    <title>My Grades</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .grades-table { width: 100%; margin-top: 20px; }
-        .grades-table th { background: #f0f6fa; }
-        .grades-table td { padding: 8px; text-align: center; }
+        .grades-table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        .grades-table th { background: #f0f6fa; padding: 10px; }
+        .grades-table td { padding: 8px; text-align: center; border: 1px solid #ddd; }
         .summary-row td { font-weight: bold; background: #f8f8f8; }
     </style>
 </head>
 <body>
 <?php include 'navbar_student.php'; ?>
 <div class="dashboard-box">
-    <h2>Grades</h2>
+    <h2>Performance Report</h2>
     <form method="get" style="margin-bottom:16px;">
-        <label>Select Term/Assessment:</label>
+        <label>Select Term:</label>
         <select name="term" onchange="this.form.submit()">
             <?php foreach ($terms as $term): ?>
                 <option value="<?= htmlspecialchars($term) ?>" <?= $selected_term == $term ? 'selected' : '' ?>>
@@ -115,23 +86,23 @@ $subject_count = count($subject_map);
             <?php endforeach; ?>
         </select>
     </form>
-    <table class="grades-table" border="1">
+    <table class="grades-table">
         <tr><th>Subject</th><th>Marks</th><th>Grade</th><th>Points</th></tr>
         <?php
         $sum_marks = 0;
         $sum_points = 0;
         foreach ($subject_map as $subject_id => $subject_name):
-            $score = isset($grades[$subject_id]['score']) ? $grades[$subject_id]['score'] : '';
-            $grade = isset($grades[$subject_id]['grade']) ? $grades[$subject_id]['grade'] : '';
-            $points = ($grade && isset($grade_points[$grade])) ? $grade_points[$grade] : '';
-            if ($score !== '') $sum_marks += floatval($score);
-            if ($points !== '') $sum_points += $points;
+            $score = isset($grades[$subject_id]['score']) ? $grades[$subject_id]['score'] : '-';
+            $grade = isset($grades[$subject_id]['grade']) ? $grades[$subject_id]['grade'] : '-';
+            $points = ($grade && isset($grade_points[$grade])) ? $grade_points[$grade] : 0;
+            if ($score !== '-') $sum_marks += floatval($score);
+            $sum_points += $points;
         ?>
             <tr>
-                <td><?= htmlspecialchars($subject_name) ?></td>
+                <td style="text-align: left; padding-left: 15px;"><?= htmlspecialchars($subject_name) ?></td>
                 <td><?= htmlspecialchars($score) ?></td>
                 <td><?= htmlspecialchars($grade) ?></td>
-                <td><?= htmlspecialchars($points) ?></td>
+                <td><?= $points ?></td>
             </tr>
         <?php endforeach; ?>
         <?php if ($subject_count > 0): ?>
@@ -141,29 +112,8 @@ $subject_count = count($subject_map);
                 <td></td>
                 <td><?= $sum_points ?> pts</td>
             </tr>
-            <tr class="summary-row">
-                <td colspan="3">Overall Grade</td>
-                <td>
-                    <?php
-                    $avg_points = $subject_count ? $sum_points / $subject_count : 0;
-                    if ($avg_points >= 11.5) echo 'A';
-                    elseif ($avg_points >= 10.5) echo 'A-';
-                    elseif ($avg_points >= 9.5) echo 'B+';
-                    elseif ($avg_points >= 8.5) echo 'B';
-                    elseif ($avg_points >= 7.5) echo 'B-';
-                    elseif ($avg_points >= 6.5) echo 'C+';
-                    elseif ($avg_points >= 5.5) echo 'C';
-                    elseif ($avg_points >= 4.5) echo 'C-';
-                    elseif ($avg_points >= 3.5) echo 'D+';
-                    elseif ($avg_points >= 2.5) echo 'D';
-                    elseif ($avg_points >= 1.5) echo 'D-';
-                    else echo 'E';
-                    ?>
-                </td>
-            </tr>
         <?php endif; ?>
     </table>
 </div>
 </body>
 </html>
-
