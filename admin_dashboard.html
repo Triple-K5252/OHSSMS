@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - OHSSMS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="dashboard">
+    <!-- Sidebar Navigation -->
+    <nav class="navbar">
+        <div class="navbar-header">
+            <h2>OHSSMS Admin</h2>
+            <p id="adminName" class="admin-name">Admin</p>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="#dashboard" class="nav-link active" data-page="dashboard">Dashboard</a></li>
+            <li><a href="#register" class="nav-link" data-page="register">Register Users</a></li>
+            <li><a href="#manage-students" class="nav-link" data-page="manage-students">Manage Students</a></li>
+            <li><a href="#manage-staff" class="nav-link" data-page="manage-staff">Manage Staff</a></li>
+            <li><a href="#announcements" class="nav-link" data-page="announcements">Announcements</a></li>
+            <li><a href="#subjects" class="nav-link" data-page="subjects">Manage Subjects</a></li>
+            <li><a href="#" id="logoutBtn" class="nav-link logout">Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <div class="page-header">
+                <h1>Dashboard</h1>
+                <p>Welcome to OHSSMS Admin Panel</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Students</h3>
+                    <p class="stat-number" id="totalStudents">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Teachers</h3>
+                    <p class="stat-number" id="totalTeachers">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Non-Teaching Staff</h3>
+                    <p class="stat-number" id="totalNTS">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Subjects</h3>
+                    <p class="stat-number" id="totalSubjects">0</p>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h2>System Overview</h2>
+                    <div class="chart-container">
+                        <canvas id="overviewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Users Page -->
+        <div id="register" class="page">
+            <div class="page-header">
+                <h1>Register New Users</h1>
+                <p>Add students, teachers, or non-teaching staff to the system</p>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="student-form">Register Student</button>
+                <button class="tab-btn" data-tab="teacher-form">Register Teacher</button>
+                <button class="tab-btn" data-tab="nts-form">Register Non-Teaching Staff</button>
+            </div>
+
+            <!-- Student Registration Form -->
+            <div id="student-form" class="tab-content active">
+                <div class="card">
+                    <h2>Register New Student</h2>
+                    <form id="studentForm" class="registration-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="studentAdmissionNo">Admission Number *</label>
+                                <input type="text" id="studentAdmissionNo" name="admission_no" 
+                                       placeholder="e.g. ADM/2026/001" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="studentFirstName">First Name *</label>
+                                <input type="text" id="studentFirstName" name="first_name" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="studentLastName">Last Name *</label>
+                                <input type="text" id="studentLastName" name="last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="studentDOB">Date of Birth *</label>
+                                <input type="date" id="studentDOB" name="dob" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="studentForm">Form *</label>
+                                <select id="studentForm" name="form" required>
+                                    <option value="">Select Form</option>
+                                    <option value="1">Form 1</option>
+                                    <option value="2">Form 2</option>
+                                    <option value="3">Form 3</option>
+                                    <option value="4">Form 4</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="studentStream">Stream *</label>
+                                <select id="studentStream" name="stream" required>
+                                    <option value="">Select Stream</option>
+                                    <option value="North">North</option>
+                                    <option value="South">South</option>
+                                    <option value="East">East</option>
+                                    <option value="West">West</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="guardianName">Guardian Name *</label>
+                                <input type="text" id="guardianName" name="guardian_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="guardianContact">Guardian Contact *</label>
+                                <input type="tel" id="guardianContact" name="guardian_contact" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">Register Student</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Teacher Registration Form -->
+            <div id="teacher-form" class="tab-content">
+                <div class="card">
+                    <h2>Register New Teacher</h2>
+                    <form id="teacherForm" class="registration-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="teacherFirstName">First Name *</label>
+                                <input type="text" id="teacherFirstName" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="teacherLastName">Last Name *</label>
+                                <input type="text" id="teacherLastName" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="teacherID">Teacher ID Number *</label>
+                                <input type="text" id="teacherID" name="id_no" placeholder="e.g. TCH/2026/001" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="teacherDOB">Date of Birth *</label>
+                                <input type="date" id="teacherDOB" name="dob" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="teacherPassword">Password *</label>
+                                <input type="password" id="teacherPassword" name="password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="teacherSubject">Subject Specialization *</label>
+                                <select id="teacherSubject" name="subject_id" required>
+                                    <option value="">Select Subject</option>
+                                    <!-- Populated by JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="isClassTeacher" name="is_class_teacher" value="1">
+                                Make this teacher a Class Teacher
+                            </label>
+                            <small>Class teachers are automatically assigned to a class (North → South → East → West)</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">Register Teacher</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Non-Teaching Staff Registration Form -->
+            <div id="nts-form" class="tab-content">
+                <div class="card">
+                    <h2>Register Non-Teaching Staff</h2>
+                    <form id="ntsForm" class="registration-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ntsFirstName">First Name *</label>
+                                <input type="text" id="ntsFirstName" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ntsLastName">Last Name *</label>
+                                <input type="text" id="ntsLastName" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ntsID">Staff ID Number *</label>
+                                <input type="text" id="ntsID" name="id_no" placeholder="e.g. NTS/2026/001" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="ntsPassword">Password *</label>
+                                <input type="password" id="ntsPassword" name="password" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ntsPosition">Position/Role *</label>
+                            <input type="text" id="ntsPosition" name="position" placeholder="e.g. Librarian, Janitor, Secretary" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">Register Non-Teaching Staff</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Students Page -->
+        <div id="manage-students" class="page">
+            <div class="page-header">
+                <h1>Manage Students</h1>
+                <p>View, edit, and delete student records</p>
+            </div>
+
+            <div class="card">
+                <div class="search-section">
+                    <input type="text" id="studentSearch" class="search-input" 
+                           placeholder="Search by admission number, name, or form...">
+                    <button class="btn btn-primary" onclick="searchStudents()">Search</button>
+                </div>
+
+                <div id="studentsTableContainer" class="table-responsive">
+                    <table id="studentsTable">
+                        <thead>
+                            <tr>
+                                <th>Admission No</th>
+                                <th>Name</th>
+                                <th>Form</th>
+                                <th>Stream</th>
+                                <th>Guardian Contact</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noStudentsMessage" class="no-data">No students found. Add one using the Register Students tab.</div>
+            </div>
+        </div>
+
+        <!-- Manage Staff Page -->
+        <div id="manage-staff" class="page">
+            <div class="page-header">
+                <h1>Manage Staff</h1>
+                <p>View, edit, and delete staff records (Teachers & Non-Teaching)</p>
+            </div>
+
+            <!-- Teachers Section -->
+            <div class="card">
+                <h2>Teachers</h2>
+                <div class="search-section">
+                    <input type="text" id="teacherSearch" class="search-input" 
+                           placeholder="Search teachers by name or ID...">
+                    <button class="btn btn-primary" onclick="searchTeachers()">Search</button>
+                </div>
+
+                <div id="teachersTableContainer" class="table-responsive">
+                    <table id="teachersTable">
+                        <thead>
+                            <tr>
+                                <th>Teacher ID</th>
+                                <th>Name</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noTeachersMessage" class="no-data">No teachers found.</div>
+            </div>
+
+            <!-- Non-Teaching Staff Section -->
+            <div class="card" style="margin-top: 30px;">
+                <h2>Non-Teaching Staff</h2>
+                <div id="ntsTableContainer" class="table-responsive">
+                    <table id="ntsTable">
+                        <thead>
+                            <tr>
+                                <th>Staff ID</th>
+                                <th>Name</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noNTSMessage" class="no-data">No non-teaching staff found.</div>
+            </div>
+        </div>
+
+        <!-- Announcements Page -->
+        <div id="announcements" class="page">
+            <div class="page-header">
+                <h1>Announcements</h1>
+                <p>Create and manage system announcements</p>
+            </div>
+
+            <!-- Create Announcement -->
+            <div class="card">
+                <h2>Create New Announcement</h2>
+                <form id="announcementForm" class="registration-form">
+                    <div class="form-group">
+                        <label for="announcementTitle">Title *</label>
+                        <input type="text" id="announcementTitle" name="title" 
+                               placeholder="e.g. Mid-Term Exam Schedule" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="announcementMessage">Message *</label>
+                        <textarea id="announcementMessage" name="message" rows="6" 
+                                  placeholder="Write your announcement here..." required></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="announcementTarget">Send To *</label>
+                            <select id="announcementTarget" name="target" required>
+                                <option value="all">All Users</option>
+                                <option value="teachers">Teachers Only</option>
+                                <option value="students">Students Only</option>
+                                <option value="non_teaching">Non-Teaching Staff Only</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="announcementForm">Form (Optional)</label>
+                            <select id="announcementForm" name="form">
+                                <option value="">All Forms</option>
+                                <option value="1">Form 1</option>
+                                <option value="2">Form 2</option>
+                                <option value="3">Form 3</option>
+                                <option value="4">Form 4</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full">Post Announcement</button>
+                </form>
+            </div>
+
+            <!-- Recent Announcements -->
+            <div class="card" style="margin-top: 30px;">
+                <h2>Recent Announcements</h2>
+                <div id="announcementsContainer">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Subjects Page -->
+        <div id="subjects" class="page">
+            <div class="page-header">
+                <h1>Manage Subjects</h1>
+                <p>Add, edit, and delete subjects offered by the school</p>
+            </div>
+
+            <div class="card">
+                <h2>Add New Subject</h2>
+                <form id="subjectForm" class="registration-form">
+                    <div class="form-group">
+                        <label for="subjectName">Subject Name *</label>
+                        <input type="text" id="subjectName" name="subject_name" 
+                               placeholder="e.g. Mathematics" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Subject</button>
+                </form>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h2>All Subjects</h2>
+                <div id="subjectsContainer" class="subjects-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/admin-dashboard.js"></script>
+</body>
+</html>
